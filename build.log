@@ -1,0 +1,36 @@
+
+> warm-lead@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.18
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/11) ...
+   Generating static pages (2/11) 
+   Generating static pages (5/11) 
+   Generating static pages (8/11) 
+ ✓ Generating static pages (11/11)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    533 B          87.7 kB
+├ ○ /_not-found                          873 B            88 kB
+├ ƒ /api/submit-order                    0 B                0 B
+├ ƒ /api/warm-pixel                      0 B                0 B
+├ ○ /dashboard                           113 kB          201 kB
+├ ○ /login                               2.18 kB        96.2 kB
+├ ○ /pixel-warming                       2.49 kB        89.6 kB
+└ ○ /signup                              2.29 kB        96.3 kB
++ First Load JS shared by all            87.1 kB
+  ├ chunks/117-bb0627796a1be63b.js       31.6 kB
+  ├ chunks/fd9d1056-49ca28257eb7a92c.js  53.6 kB
+  └ other shared chunks (total)          1.89 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
