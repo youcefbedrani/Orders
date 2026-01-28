@@ -59,7 +59,27 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
     try {
         browser = await puppeteer.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-translate',
+                '--hide-scrollbars',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--safebrowsing-disable-auto-update',
+                '--disable-blink-features=AutomationControlled'
+            ],
+            ignoreDefaultArgs: ['--enable-automation']
         });
 
         for (let i = 0; i < numberOfOrders; i++) {

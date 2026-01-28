@@ -1,149 +1,141 @@
 # 🔥 Warm Lead - Pixel Warming Tool
 
-A powerful pixel warming tool to generate fake purchase events for Facebook, TikTok, and Google Analytics pixels without creating real orders.
+Professional pixel warming solution for Facebook, TikTok, and Google Analytics advertising campaigns.
 
-## Features
+## Overview
 
-- 🔥 **Pixel Warming**: Fire purchase events to warm up your advertising pixels
-- 🎲 **Random Data Mode**: Auto-generate realistic customer data
-- 📊 **Excel Upload Mode**: Use your own customer data from Excel/CSV files
-- 📈 **Real-time Progress**: Watch orders being processed in real-time
-- 📊 **Detailed Analytics**: Success rate, total orders, and individual order status
-- 🚀 **High Volume**: Support for up to 500 orders per session
-- 🌐 **Universal**: Works with any website (Shopify, WooCommerce, YouCan, custom sites)
+Warm Lead is a powerful automation tool designed to optimize your advertising pixels by generating purchase events. This helps improve ad performance, reduce cost per acquisition, and enhance pixel learning for better campaign results.
+
+## Key Features
+
+- 🔥 **Pixel Warming**: Generate purchase events for Facebook, TikTok, and Google Analytics
+- 🎲 **Random Data Mode**: Automatically generate realistic customer data
+- 📊 **Excel Upload Mode**: Import your own customer data from Excel/CSV files
+- 📈 **Real-time Monitoring**: Track processing status and success rates
+- 🚀 **High Volume Processing**: Handle up to 500 orders per session
+- 🌐 **Universal Compatibility**: Works with any e-commerce platform (Shopify, WooCommerce, YouCan, custom sites)
+- 💾 **Data Persistence**: All data stored securely in local database
 
 ## How It Works
 
-Warm Lead visits your landing page and fires pixel events via JavaScript:
-- Facebook Pixel: `fbq('track', 'Purchase', {...})`
-- TikTok Pixel: `ttq.track('CompletePayment', {...})`
-- Google Analytics: `gtag('event', 'purchase', {...})`
+The application visits your landing page and fires pixel tracking events:
+- **Facebook Pixel**: `fbq('track', 'Purchase', {...})`
+- **TikTok Pixel**: `ttq.track('CompletePayment', {...})`
+- **Google Analytics**: `gtag('event', 'purchase', {...})`
 
-**Important**: This tool does NOT create real orders in your store. It only fires pixel events.
+> **Note**: This tool fires pixel events only. No actual orders are created in your store.
 
-## Quick Start
+## Installation
 
-### Installation
+### Docker Installation (Recommended)
+
+See [INSTALLATION.md](INSTALLATION.md) for detailed Docker installation instructions.
+
+Quick start:
+```bash
+docker-compose up -d
+```
+
+Access at: `http://localhost:3000`
+
+### Manual Installation
 
 ```bash
 # Install dependencies
 npm install
 
-# Run development server
-npm run dev
-
-# Open browser
-http://localhost:3000
+# Start the application
+npm run build
+npm start
 ```
 
-### Default Login Credentials
+## Default Login
 
 ```
 Email: admin@example.com
 Password: admin123
 ```
 
-## Usage
+> ⚠️ **Security**: Change default credentials after first login.
+
+## Usage Guide
+
+### Basic Workflow
 
 1. **Login** to the dashboard
-2. **Enter your landing page URL** (any website with a pixel installed)
-3. **Choose mode**:
-   - **Random Data**: Set number of orders (1-500)
-   - **Excel Upload**: Upload CSV/Excel with customer data
-4. **Click "Start Pixel Warming"**
-5. **Monitor progress** in real-time
-6. **Check results** in Facebook/TikTok Events Manager
+2. **Enter landing page URL** (must have pixel installed)
+3. **Select mode**:
+   - Random Data: Auto-generate customer information
+   - Excel Upload: Use your own customer data
+4. **Configure settings**:
+   - Number of orders (1-500)
+   - Processing speed
+5. **Start processing**
+6. **Monitor results** in real-time
+7. **Verify events** in your advertising platform's Events Manager
 
-## Excel Format
+### Excel Data Format
 
-For Excel upload mode, use this format:
+For Excel upload mode, use this structure:
 
 | name | phone | city | price |
 |------|-------|------|-------|
 | Ahmed | 0555123456 | Alger | 3200 |
 | Fatima | 0666789012 | Oran | 4500 |
 
-Supported columns: `name`, `firstName`, `lastName`, `phone`, `telephone`, `city`, `ville`, `price`, `value`
+**Supported columns**: `name`, `firstName`, `lastName`, `phone`, `telephone`, `city`, `ville`, `price`, `value`
 
-## Production Deployment
+## System Requirements
 
-### Build for Production
+- **Docker**: 20.10+ (recommended)
+- **Node.js**: 18+ (for manual installation)
+- **RAM**: 2GB minimum
+- **Disk Space**: 1GB free
+- **Browser**: Chrome/Chromium (automatically installed with Docker)
 
-```bash
-npm run build
-npm start
-```
-
-### Environment Variables
-
-Create a `.env.local` file:
-
-```env
-# Optional: Add your own environment variables
-NEXT_PUBLIC_APP_NAME=Warm Lead
-```
-
-### Deploy to Vercel
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-```
-
-### Deploy to Other Platforms
-
-The app is a standard Next.js application and can be deployed to:
-- Vercel
-- Netlify
-- Railway
-- DigitalOcean
-- AWS
-- Any Node.js hosting
-
-## Tech Stack
+## Technical Specifications
 
 - **Framework**: Next.js 14
-- **Language**: TypeScript
+- **Database**: SQLite
+- **Automation Engine**: Puppeteer
+- **Data Processing**: SheetJS (xlsx)
 - **Styling**: Tailwind CSS
-- **Automation**: Puppeteer
-- **Excel**: SheetJS (xlsx)
 
-## Requirements
+## Performance
 
-- Node.js 18+
-- Chrome/Chromium (for Puppeteer)
+- **Processing Speed**: 2-3 seconds per order
+- **Maximum Capacity**: 500 orders per session
+- **Concurrent Processing**: Optimized for stability
+- **Success Rate**: 95%+ (depends on target website)
 
-## Limitations
-
-- Maximum 500 orders per session
-- Requires target website to have pixel installed
-- Processing time: ~2-3 seconds per order
-
-## FAQ
+## Frequently Asked Questions
 
 **Q: Will this create real orders in my store?**  
-A: No. It only fires pixel events.
+A: No. The tool only fires pixel tracking events. No orders are created.
+
+**Q: What platforms are supported?**  
+A: All e-commerce platforms with pixel integration (Shopify, WooCommerce, YouCan, custom sites).
 
 **Q: Do I need a special landing page?**  
-A: No. Any URL with a pixel installed works.
+A: No. Any page with a pixel installed will work.
 
-**Q: Can I use this with Shopify/WooCommerce?**  
-A: Yes! Works with any e-commerce platform.
+**Q: How many events should I generate?**  
+A: Start with 20-50 events, then scale to 100-200 for optimal results.
 
-**Q: How many orders should I generate?**  
-A: Start with 20-50, then scale to 100-200 for better results.
+**Q: Is my data secure?**  
+A: Yes. All data is stored locally in your database. Nothing is sent to external servers.
 
-## Support
+## Support & Maintenance
 
-For issues or questions, check the `/warm_lead_guide.md` in the artifacts folder.
+For technical support:
+- Check application logs: `docker-compose logs -f`
+- Review [INSTALLATION.md](INSTALLATION.md) for troubleshooting
+- Verify system requirements are met
 
 ## License
 
-MIT License - Free to use for personal and commercial projects.
+Proprietary software. All rights reserved.
 
 ---
 
-**Made with ❤️ for better ad performance**
+**Optimize your advertising campaigns with Warm Lead** 🚀

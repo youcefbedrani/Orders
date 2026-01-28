@@ -1,7 +1,7 @@
 {
-  "name": "warm-lead",
+  "name": "warm-lead-pixel-tool",
   "version": "1.0.0",
-  "description": "Pixel warming tool for Facebook, TikTok, and Google Analytics",
+  "description": "Professional pixel warming solution for Facebook, TikTok, and Google Analytics",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

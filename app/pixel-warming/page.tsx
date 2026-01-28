@@ -23,7 +23,7 @@ export default function PixelWarming() {
             const response = await fetch('/api/warm-pixel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, numberOfOrders })
+                body: JSON.stringify({ url, numberOfOrders, mode: 'random' })
             });
 
             const data = await response.json();
@@ -77,7 +77,7 @@ export default function PixelWarming() {
                         <input
                             type="number"
                             value={numberOfOrders}
-                            onChange={(e) => setNumberOfOrders(parseInt(e.target.value))}
+                            onChange={(e) => setNumberOfOrders(parseInt(e.target.value) || 10)}
                             min="1"
                             max="100"
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
