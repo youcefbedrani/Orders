@@ -54,6 +54,12 @@ export default function Dashboard() {
             return;
         }
 
+        const ordersCount = mode === 'random' ? numberOfOrders : customerData.length;
+        if (!ordersCount || isNaN(ordersCount) || ordersCount < 1) {
+            alert('Please enter a valid number of orders');
+            return;
+        }
+
         setProcessing(true);
         setResults(null);
 
