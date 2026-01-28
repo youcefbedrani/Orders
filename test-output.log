@@ -1,0 +1,36 @@
+🚀 Starting Order Submission Test
+
+Landing Page: https://seller-area.youcan.shop/pages/nnnnnnn
+Test Orders: 3
+
+================================================================================
+
+[1/3] Testing order for: Ahmed Ali (0555123456)
+❌ FAILED - Order NOT submitted for Ahmed Ali
+   Waiting 3 seconds before next order...
+
+[2/3] Testing order for: Fatima Benali (0666789012)
+❌ FAILED - Order NOT submitted for Fatima Benali
+   Waiting 3 seconds before next order...
+
+[3/3] Testing order for: Mohamed Said (0777456789)
+❌ FAILED - Order NOT submitted for Mohamed Said
+
+================================================================================
+
+📊 Test Results:
+   Total Orders: 3
+   ✅ Successful: 0
+   ❌ Failed: 3
+   📈 Success Rate: 0.0%
+
+💡 Next Steps:
+   1. Check the server logs above for detailed submission info
+   2. Go to your YouCan store dashboard
+   3. Check if the orders appear in your orders list
+   4. If orders show as "success" but don't appear in YouCan:
+      - The landing page URL might be incorrect
+      - The form fields might not match
+      - Check server logs for "Submit response status" and "Redirect location"
+
+

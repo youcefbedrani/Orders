@@ -1,0 +1,46 @@
+// Prisma schema for YouCan Order Automation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  jobs      Job[]
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landingPageUrl String
+  fileName       String
+  columnMapping  String   // JSON string
+  status         String   @default("pending") // pending, processing, completed, failed, stopped
+  totalOrders    Int      @default(0)
+  successCount   Int      @default(0)
+  failedCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  jobId        String
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customerName String
+  phone        String
+  status       String   @default("pending") // pending, success, failed
+  errorMsg     String?
+  createdAt    DateTime @default(now())
+}
