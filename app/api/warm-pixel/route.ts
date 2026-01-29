@@ -10,12 +10,13 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        const { url, numberOfOrders, mode, customerData, userId } = await request.json();
+        const { url, numberOfOrders, mode, customerData, userId, fileName } = await request.json();
 
         console.log(`🔥 Warming pixel for: ${url}`);
         console.log(`📊 Mode: ${mode}`);
         console.log(`📊 Number of orders: ${numberOfOrders}`);
         console.log(`👤 User: ${userId}`);
+        if (fileName) console.log(`📄 File: ${fileName}`);
 
         const results = await warmPixel(url, numberOfOrders, mode, customerData);
 
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
                     successRate: parseFloat(results.successRate || '0'),
                     duration,
                     mode: mode || 'random',
+                    fileName: fileName || undefined,
                     userId: userId || undefined
                 }
             });

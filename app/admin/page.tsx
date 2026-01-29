@@ -235,6 +235,12 @@ export default function AdminDashboard() {
                                             ) : (
                                                 <>
                                                     <button
+                                                        onClick={() => router.push(`/admin/users/${u.id}`)}
+                                                        className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-md transition"
+                                                    >
+                                                        Activity
+                                                    </button>
+                                                    <button
                                                         onClick={() => startEditing(u)}
                                                         className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition"
                                                     >

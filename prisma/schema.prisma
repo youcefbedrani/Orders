@@ -56,6 +56,7 @@ model Campaign {
   successRate  Float
   duration     Int      // in seconds
   mode         String   // 'random' or 'excel'
+  fileName     String?  // Name of the Excel file used (if any)
   createdAt    DateTime @default(now())
   userId       String?
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)

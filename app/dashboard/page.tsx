@@ -46,7 +46,7 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchCampaigns = async () => {
             try {
-                const response = await fetch('/api/campaigns?limit=10');
+                const response = await fetch(`/api/campaigns?limit=10&userId=${user.id}`);
                 const data = await response.json();
                 setCampaigns(data.campaigns || []);
                 setCampaignStats(data.stats);
@@ -138,7 +138,8 @@ export default function Dashboard() {
                     numberOfOrders: mode === 'random' ? numberOfOrders : customerData.length,
                     mode,
                     customerData: mode === 'excel' ? customerData : undefined,
-                    userId: user?.id
+                    userId: user?.id,
+                    fileName: file?.name
                 })
             });
 
@@ -496,6 +497,7 @@ export default function Dashboard() {
                                             </p>
                                             <p className="text-sm text-gray-600 mt-1">
                                                 {formatDate(campaign.createdAt)} • {campaign.orderCount} orders • {campaign.successRate.toFixed(1)}% success
+                                                {campaign.fileName && <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium border border-blue-100">📄 {campaign.fileName}</span>}
                                             </p>
                                         </div>
                                         <div className="flex items-center space-x-4 text-sm">
