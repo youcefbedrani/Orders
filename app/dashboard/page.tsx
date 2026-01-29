@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { formatDuration, formatDate, shortenUrl } from '@/lib/utils';
+import { detectColumns, isConfidentDetection, getConfidenceLabel, getConfidenceColor } from '@/lib/columnDetector';
 
 export default function Dashboard() {
     const router = useRouter();
@@ -18,6 +19,8 @@ export default function Dashboard() {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [campaignStats, setCampaignStats] = useState<any>(null);
+    const [detectedColumns, setDetectedColumns] = useState<any>(null);
+    const [showColumnMapping, setShowColumnMapping] = useState(false);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -78,7 +81,32 @@ export default function Dashboard() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        setCustomerData(jsonData as any[]);
+        // Get headers from first row
+        const headers = Object.keys(jsonData[0] || {});
+
+        // Automatically detect columns
+        const detection = detectColumns(headers);
+        setDetectedColumns(detection);
+
+        // Show mapping UI
+        setShowColumnMapping(true);
+
+        // If confident, auto-apply mapping
+        if (isConfidentDetection(detection)) {
+            applyColumnMapping(jsonData, detection.mapping);
+        }
+    };
+
+    const applyColumnMapping = (data: any[], mapping: any) => {
+        // Transform data using detected mapping
+        const transformedData = data.map(row => ({
+            name: row[mapping.name] || '',
+            phone: row[mapping.phone] || '',
+            city: row[mapping.city] || '',
+            price: row[mapping.price] || row[mapping.name] || '' // Fallback to name if price not found
+        }));
+
+        setCustomerData(transformedData);
     };
 
     const startWarming = async () => {
@@ -284,6 +312,68 @@ export default function Dashboard() {
                                     </p>
                                 </label>
                             </div>
+
+                            {/* Column Mapping Display */}
+                            {showColumnMapping && detectedColumns && (
+                                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="font-semibold text-blue-900 flex items-center">
+                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Auto-Detected Columns
+                                        </h4>
+                                        {isConfidentDetection(detectedColumns) && (
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                                ✓ High Confidence
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                        {detectedColumns.mapping.name && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-700">👤 Name:</span>
+                                                <span className="font-medium">"{detectedColumns.mapping.name}"</span>
+                                                <span className={`text-xs ${getConfidenceColor(detectedColumns.confidence.name)}`}>
+                                                    {getConfidenceLabel(detectedColumns.confidence.name)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {detectedColumns.mapping.phone && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-700">📱 Phone:</span>
+                                                <span className="font-medium">"{detectedColumns.mapping.phone}"</span>
+                                                <span className={`text-xs ${getConfidenceColor(detectedColumns.confidence.phone)}`}>
+                                                    {getConfidenceLabel(detectedColumns.confidence.phone)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {detectedColumns.mapping.city && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-700">🏙️ City:</span>
+                                                <span className="font-medium">"{detectedColumns.mapping.city}"</span>
+                                                <span className={`text-xs ${getConfidenceColor(detectedColumns.confidence.city)}`}>
+                                                    {getConfidenceLabel(detectedColumns.confidence.city)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {detectedColumns.mapping.price && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-700">💰 Price:</span>
+                                                <span className="font-medium">"{detectedColumns.mapping.price}"</span>
+                                                <span className={`text-xs ${getConfidenceColor(detectedColumns.confidence.price)}`}>
+                                                    {getConfidenceLabel(detectedColumns.confidence.price)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!isConfidentDetection(detectedColumns) && (
+                                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                                            ⚠️ Some columns couldn't be detected with high confidence. Please verify the mapping is correct.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
