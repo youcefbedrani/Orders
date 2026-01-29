@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import { formatDuration, formatDate, shortenUrl } from '@/lib/utils';
 
 export default function Dashboard() {
     const router = useRouter();
@@ -14,6 +15,9 @@ export default function Dashboard() {
     const [customerData, setCustomerData] = useState<any[]>([]);
     const [processing, setProcessing] = useState(false);
     const [results, setResults] = useState<any>(null);
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const [campaigns, setCampaigns] = useState<any[]>([]);
+    const [campaignStats, setCampaignStats] = useState<any>(null);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -23,6 +27,40 @@ export default function Dashboard() {
             setUser(JSON.parse(userData));
         }
     }, [router]);
+
+    // Timer effect
+    useEffect(() => {
+        if (processing) {
+            setElapsedTime(0);
+            const interval = setInterval(() => {
+                setElapsedTime(prev => prev + 1);
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [processing]);
+
+    // Fetch campaign history
+    useEffect(() => {
+        const fetchCampaigns = async () => {
+            try {
+                const response = await fetch('/api/campaigns?limit=10');
+                const data = await response.json();
+                setCampaigns(data.campaigns || []);
+                setCampaignStats(data.stats);
+            } catch (error) {
+                console.error('Error fetching campaigns:', error);
+            }
+        };
+
+        if (user) {
+            fetchCampaigns();
+        }
+
+        // Refresh after completing a campaign
+        if (results && !processing) {
+            fetchCampaigns();
+        }
+    }, [user, results, processing]);
 
     const handleLogout = () => {
         localStorage.removeItem('user');
@@ -261,7 +299,7 @@ export default function Dashboard() {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                <span>Warming Pixel... ({results?.successful || 0}/{mode === 'random' ? numberOfOrders : customerData.length})</span>
+                                <span>Warming Pixel... ({results?.successful || 0}/{mode === 'random' ? numberOfOrders : customerData.length}) • {formatDuration(elapsedTime)}</span>
                             </>
                         ) : (
                             <>
@@ -276,31 +314,41 @@ export default function Dashboard() {
 
                 {/* Results */}
                 {results && results.orders && (
-                    <div className="bg-white rounded-2xl shadow-xl p-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Generated Orders</h2>
+                    <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8 mb-6">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2 md:mb-0">Generated Orders</h2>
+                            {results.duration && (
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Completed in {formatDuration(results.duration)}</span>
+                                </div>
+                            )}
+                        </div>
                         <div className="space-y-2 max-h-96 overflow-y-auto">
                             {results.orders.map((order: any, i: number) => (
-                                <div key={i} className={`flex items-center justify-between p-4 rounded-lg ${order.status === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                                <div key={i} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg gap-3 ${order.status === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                                     <div className="flex items-center space-x-3">
                                         {order.status === 'success' ? (
-                                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                 </svg>
                                             </div>
                                         ) : (
-                                            <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                                            <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </div>
                                         )}
-                                        <div>
-                                            <p className="font-semibold text-gray-800">{order.name}</p>
-                                            <p className="text-sm text-gray-600">{order.phone} • {order.city} • {order.value} DZD</p>
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-gray-800 truncate">{order.name}</p>
+                                            <p className="text-sm text-gray-600 truncate">{order.phone} • {order.city} • {order.value} DZD</p>
                                         </div>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${order.status === 'success' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${order.status === 'success' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
                                         {order.status === 'success' ? '✓ Pixel Fired' : '✗ Failed'}
                                     </span>
                                 </div>
@@ -315,6 +363,64 @@ export default function Dashboard() {
                                 <li>• Check TikTok Events Manager for CompletePayment events</li>
                                 <li>• Your pixel is warmed up for better ad performance!</li>
                             </ul>
+                        </div>
+                    </div>
+                )}
+
+                {/* Campaign History */}
+                {campaigns.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Campaign History</h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                                <p className="text-sm text-gray-600">Total Campaigns</p>
+                                <p className="text-2xl font-bold text-gray-800">{campaignStats?.totalCampaigns || 0}</p>
+                            </div>
+                            <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                                <p className="text-sm text-gray-600">Total Orders</p>
+                                <p className="text-2xl font-bold text-green-600">{campaignStats?.totalOrders || 0}</p>
+                            </div>
+                            <div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
+                                <p className="text-sm text-gray-600">Success Rate</p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                    {campaignStats?.totalOrders > 0
+                                        ? ((campaignStats.totalSuccess / campaignStats.totalOrders) * 100).toFixed(1)
+                                        : 0}%
+                                </p>
+                            </div>
+                            <div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
+                                <p className="text-sm text-gray-600">Total Success</p>
+                                <p className="text-2xl font-bold text-orange-600">{campaignStats?.totalSuccess || 0}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {campaigns.slice(0, 10).map((campaign: any, i: number) => (
+                                <div key={campaign.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-300 transition">
+                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-gray-800 truncate" title={campaign.url}>
+                                                🔗 {shortenUrl(campaign.url, 50)}
+                                            </p>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                {formatDate(campaign.createdAt)} • {campaign.orderCount} orders • {campaign.successRate.toFixed(1)}% success
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center space-x-4 text-sm">
+                                            <div className="flex items-center space-x-1 text-gray-600">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>{formatDuration(campaign.duration)}</span>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${campaign.mode === 'random' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                                {campaign.mode === 'random' ? '🎲 Random' : '📊 Excel'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
