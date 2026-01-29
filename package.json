@@ -4,7 +4,7 @@
   "description": "Professional pixel warming solution for Facebook, TikTok, and Google Analytics",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
+    "build": "next build && mkdir -p .next/standalone/public && cp -r public/* .next/standalone/public/ || true && mkdir -p .next/standalone/.next/static && cp -r .next/static/* .next/standalone/.next/static/ || true",
     "start": "node .next/standalone/server.js",
     "postinstall": "prisma generate",
     "lint": "next lint"
