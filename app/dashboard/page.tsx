@@ -210,7 +210,7 @@ export default function Dashboard() {
                             <input
                                 type="number"
                                 value={numberOfOrders}
-                                onChange={(e) => setNumberOfOrders(parseInt(e.target.value))}
+                                onChange={(e) => setNumberOfOrders(parseInt(e.target.value) || 10)}
                                 min="1"
                                 max="500"
                                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
