@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const maxDuration = 300; // 5 minutes max
 
 export async function POST(request: NextRequest) {
+    const startTime = Date.now();
+
     try {
         const { url, numberOfOrders, mode, customerData } = await request.json();
 
@@ -13,7 +18,34 @@ export async function POST(request: NextRequest) {
 
         const results = await warmPixel(url, numberOfOrders, mode, customerData);
 
-        return NextResponse.json(results);
+        // Calculate duration
+        const endTime = Date.now();
+        const duration = Math.floor((endTime - startTime) / 1000); // in seconds
+
+        // Save campaign to database
+        try {
+            await prisma.campaign.create({
+                data: {
+                    url,
+                    orderCount: results.total,
+                    successCount: results.successful,
+                    failedCount: results.failed,
+                    successRate: parseFloat(results.successRate),
+                    duration,
+                    mode: mode || 'random'
+                }
+            });
+        } catch (dbError) {
+            console.error('Error saving campaign:', dbError);
+            // Don't fail the request if saving fails
+        }
+
+        return NextResponse.json({
+            ...results,
+            duration,
+            startTime: new Date(startTime).toISOString(),
+            endTime: new Date(endTime).toISOString()
+        });
     } catch (error) {
         console.error('Pixel warming error:', error);
         return NextResponse.json({
