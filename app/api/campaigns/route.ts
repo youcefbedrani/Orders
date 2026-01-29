@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Group by URL
-        const campaignsByUrl = campaigns.reduce((acc: any, campaign) => {
+        const campaignsByUrl = campaigns.reduce((acc: any, campaign: any) => {
             if (!acc[campaign.url]) {
                 acc[campaign.url] = {
                     url: campaign.url,
