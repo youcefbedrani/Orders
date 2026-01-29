@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Remove passwords
-        const safeUsers = users.map(user => ({
+        const safeUsers = users.map((user: any) => ({
             id: user.id,
             name: user.name,
             email: user.email,
