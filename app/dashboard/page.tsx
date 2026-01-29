@@ -362,26 +362,38 @@ export default function Dashboard() {
                                             { label: '📱 Phone Column', key: 'phone', required: true },
                                             { label: '🏙️ City Column', key: 'city', required: true },
                                             { label: '💰 Price Column', key: 'price', required: false }
-                                        ].map((field) => (
-                                            <div key={field.key}>
-                                                <label className="block text-xs font-bold text-blue-800 mb-1 uppercase tracking-wider">
-                                                    {field.label} {field.required && <span className="text-red-500">*</span>}
-                                                </label>
-                                                <select
-                                                    value={manualMapping[field.key]}
-                                                    onChange={(e) => {
-                                                        setManualMapping({ ...manualMapping, [field.key]: e.target.value });
-                                                        setMappingConfirmed(false);
-                                                    }}
-                                                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                >
-                                                    <option value="">Select Column...</option>
-                                                    {availableHeaders.map(header => (
-                                                        <option key={header} value={header}>{header}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
+                                        ].map((field) => {
+                                            const isAutoDetected = detectedColumns?.mapping[field.key] === manualMapping[field.key] && manualMapping[field.key] !== '';
+                                            const confidence = detectedColumns?.confidence[field.key] || 0;
+
+                                            return (
+                                                <div key={field.key}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider">
+                                                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                                                        </label>
+                                                        {isAutoDetected && (
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getConfidenceColor(confidence).replace('text-', 'bg-').replace('-600', '-100')} ${getConfidenceColor(confidence)}`}>
+                                                                Auto: {getConfidenceLabel(confidence)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <select
+                                                        value={manualMapping[field.key]}
+                                                        onChange={(e) => {
+                                                            setManualMapping({ ...manualMapping, [field.key]: e.target.value });
+                                                            setMappingConfirmed(false);
+                                                        }}
+                                                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
+                                                    >
+                                                        <option value="">Select Column...</option>
+                                                        {availableHeaders.map(header => (
+                                                            <option key={header} value={header}>{header}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
 
                                     {!mappingConfirmed ? (
