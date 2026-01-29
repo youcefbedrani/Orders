@@ -9,6 +9,8 @@ export default function AdminDashboard() {
     const [user, setUser] = useState<any>(null);
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({ name: '', role: '' });
 
     useEffect(() => {
         // Check Admin Auth
@@ -62,6 +64,30 @@ export default function AdminDashboard() {
     const handleLogout = () => {
         localStorage.removeItem('user');
         router.push('/login');
+    };
+
+    const startEditing = (u: any) => {
+        setEditingId(u.id);
+        setEditForm({ name: u.name || '', role: u.role });
+    };
+
+    const handleSaveEdit = async (userId: string) => {
+        try {
+            const res = await fetch(`/api/admin/users/${userId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            });
+
+            if (res.ok) {
+                setUsers(users.map(u => u.id === userId ? { ...u, ...editForm } : u));
+                setEditingId(null);
+            } else {
+                alert('Failed to update user');
+            }
+        } catch (error) {
+            alert('Error updating user');
+        }
     };
 
     if (loading) {
@@ -151,15 +177,37 @@ export default function AdminDashboard() {
                                                     {u.name?.charAt(0) || u.email.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{u.name || 'No Name'}</div>
-                                                    <div className="text-sm text-gray-500">{u.email}</div>
+                                                    {editingId === u.id ? (
+                                                        <input
+                                                            className="text-sm font-medium text-gray-900 border rounded px-2 py-1"
+                                                            value={editForm.name}
+                                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <div className="text-sm font-medium text-gray-900">{u.name || 'No Name'}</div>
+                                                            <div className="text-sm text-gray-500">{u.email}</div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-                                                {u.role}
-                                            </span>
+                                            {editingId === u.id ? (
+                                                <select
+                                                    className="text-xs leading-5 font-semibold rounded-full border px-2 py-1"
+                                                    value={editForm.role}
+                                                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                                                >
+                                                    <option value="USER">USER</option>
+                                                    <option value="ADMIN">ADMIN</option>
+                                                    <option value="BLOCKED">BLOCKED</option>
+                                                </select>
+                                            ) : (
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : u.role === 'BLOCKED' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {u.role}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900 font-semibold">{u.campaignCount || 0}</div>
@@ -168,14 +216,39 @@ export default function AdminDashboard() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {formatDate(u.createdAt)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            {u.email !== 'admin@admin.com' && (
-                                                <button
-                                                    onClick={() => handleDeleteUser(u.id, u.email)}
-                                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition"
-                                                >
-                                                    Delete
-                                                </button>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                            {editingId === u.id ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleSaveEdit(u.id)}
+                                                        className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingId(null)}
+                                                        className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md transition"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => startEditing(u)}
+                                                        className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    {u.email !== 'admin@admin.com' && (
+                                                        <button
+                                                            onClick={() => handleDeleteUser(u.id, u.email)}
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                         </td>
                                     </tr>
