@@ -24,14 +24,33 @@ export default function SignupPage() {
 
         setLoading(true);
 
-        // Simulate signup - in production, call your API
-        setTimeout(() => {
-            localStorage.setItem('user', JSON.stringify({
-                name: formData.name,
-                email: formData.email
-            }));
+        try {
+            const res = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || 'Signup failed');
+                setLoading(false);
+                return;
+            }
+
+            // Save user info
+            localStorage.setItem('user', JSON.stringify(data));
             router.push('/dashboard');
-        }, 1000);
+        } catch (error) {
+            console.error('Signup error:', error);
+            alert('An error occurred during signup');
+            setLoading(false);
+        }
     };
 
     return (

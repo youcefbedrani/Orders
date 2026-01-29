@@ -137,7 +137,8 @@ export default function Dashboard() {
                     url,
                     numberOfOrders: mode === 'random' ? numberOfOrders : customerData.length,
                     mode,
-                    customerData: mode === 'excel' ? customerData : undefined
+                    customerData: mode === 'excel' ? customerData : undefined,
+                    userId: user?.id
                 })
             });
 

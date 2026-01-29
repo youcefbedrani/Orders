@@ -14,11 +14,35 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
 
-        // Simulate login - in production, call your API
-        setTimeout(() => {
-            localStorage.setItem('user', JSON.stringify({ email }));
-            router.push('/dashboard');
-        }, 1000);
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || 'Login failed');
+                setLoading(false);
+                return;
+            }
+
+            // Save user info
+            localStorage.setItem('user', JSON.stringify(data));
+
+            // Redirect based on role
+            if (data.role === 'ADMIN') {
+                router.push('/admin');
+            } else {
+                router.push('/dashboard');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('An error occurred during login');
+            setLoading(false);
+        }
     };
 
     return (

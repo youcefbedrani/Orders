@@ -15,7 +15,9 @@ model User {
   password  String
   name      String?
   createdAt DateTime @default(now())
+  role      String   @default("USER") // 'USER', 'ADMIN', 'BLOCKED'
   jobs      Job[]
+  campaigns Campaign[]
 }
 
 model Job {
@@ -55,4 +57,6 @@ model Campaign {
   duration     Int      // in seconds
   mode         String   // 'random' or 'excel'
   createdAt    DateTime @default(now())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }

@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "next": "^14.0.0",
     "puppeteer": "^21.0.0",
     "react": "^18.2.0",
