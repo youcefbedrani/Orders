@@ -178,28 +178,28 @@ export default function Dashboard() {
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50">
             {/* Header */}
             <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
-                <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center space-x-3 self-start sm:self-center">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold">🔥 Warm Lead</h1>
-                            <p className="text-sm text-orange-100">Pixel Warming Tool</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold">🔥 Warm Lead</h1>
+                            <p className="text-xs sm:text-sm text-orange-100 italic">Premium Pixel Warming</p>
                         </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                            <p className="font-semibold">{user?.name || 'User'}</p>
-                            <p className="text-xs text-orange-100">{user?.email}</p>
+                    <div className="flex items-center justify-between w-full sm:w-auto sm:space-x-4 border-t border-white/10 sm:border-0 pt-4 sm:pt-0">
+                        <div className="text-left sm:text-right">
+                            <p className="font-semibold text-sm sm:text-base">{user?.name || 'User'}</p>
+                            <p className="text-[10px] sm:text-xs text-orange-100">{user?.email}</p>
                         </div>
                         <button
                             onClick={handleLogout}
-                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition flex items-center space-x-2"
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg transition flex items-center space-x-2 text-sm"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
                             <span>Logout</span>
@@ -209,32 +209,35 @@ export default function Dashboard() {
             </div>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
                 {/* Stats Cards */}
                 {results && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-                            <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-                            <p className="text-3xl font-bold text-gray-800">{results.total}</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+                        <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-blue-500">
+                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Total Orders</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-gray-800">{results.total}</p>
                         </div>
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-                            <p className="text-sm text-gray-600 mb-1">Successful</p>
-                            <p className="text-3xl font-bold text-green-600">{results.successful}</p>
+                        <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-green-500">
+                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Successful</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-green-600">{results.successful}</p>
                         </div>
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
-                            <p className="text-sm text-gray-600 mb-1">Failed</p>
-                            <p className="text-3xl font-bold text-red-600">{results.failed}</p>
+                        <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-red-500">
+                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Failed</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-red-600">{results.failed}</p>
                         </div>
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-                            <p className="text-sm text-gray-600 mb-1">Success Rate</p>
-                            <p className="text-3xl font-bold text-purple-600">{results.successRate}%</p>
+                        <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
+                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Success Rate</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-purple-600">{results.successRate}%</p>
                         </div>
                     </div>
                 )}
 
                 {/* Main Card */}
-                <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Pixel Warming Configuration</h2>
+                <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span className="bg-orange-100 p-2 rounded-lg mr-3">⚙️</span>
+                        Configuration
+                    </h2>
 
                     {/* Landing Page URL */}
                     <div className="mb-6">
@@ -253,36 +256,36 @@ export default function Dashboard() {
 
                     {/* Mode Selection */}
                     <div className="mb-6">
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        <label className="block text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider text-xs">
                             Data Source
                         </label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <button
                                 onClick={() => setMode('random')}
-                                className={`p-4 rounded-lg border-2 transition ${mode === 'random' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}
+                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'random' ? 'border-orange-500 bg-orange-50 shadow-inner' : 'border-gray-100 hover:border-orange-200 bg-gray-50/50'}`}
                             >
                                 <div className="flex items-center space-x-3">
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${mode === 'random' ? 'border-orange-500' : 'border-gray-300'}`}>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'random' ? 'border-orange-500' : 'border-gray-300'}`}>
                                         {mode === 'random' && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
                                     </div>
-                                    <div className="text-left">
-                                        <p className="font-semibold text-gray-800">Random Data</p>
-                                        <p className="text-xs text-gray-600">Auto-generate fake customers</p>
+                                    <div>
+                                        <p className="font-bold text-gray-800">Random Data</p>
+                                        <p className="text-xs text-gray-500">Auto-generate customers</p>
                                     </div>
                                 </div>
                             </button>
 
                             <button
                                 onClick={() => setMode('excel')}
-                                className={`p-4 rounded-lg border-2 transition ${mode === 'excel' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}
+                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'excel' ? 'border-orange-500 bg-orange-50 shadow-inner' : 'border-gray-100 hover:border-orange-200 bg-gray-50/50'}`}
                             >
                                 <div className="flex items-center space-x-3">
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${mode === 'excel' ? 'border-orange-500' : 'border-gray-300'}`}>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'excel' ? 'border-orange-500' : 'border-gray-300'}`}>
                                         {mode === 'excel' && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
                                     </div>
-                                    <div className="text-left">
-                                        <p className="font-semibold text-gray-800">Excel Upload</p>
-                                        <p className="text-xs text-gray-600">Use your own customer data</p>
+                                    <div>
+                                        <p className="font-bold text-gray-800">Excel Upload</p>
+                                        <p className="text-xs text-gray-500">Use your own data</p>
                                     </div>
                                 </div>
                             </button>

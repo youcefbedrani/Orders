@@ -49,17 +49,17 @@ export default function LoginPage() {
         <div className="min-h-screen bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 flex items-center justify-center p-4">
             <div className="max-w-md w-full">
                 {/* Logo/Brand */}
-                <div className="text-center mb-8">
-                    <div className="inline-block p-4 bg-white/20 backdrop-blur-sm rounded-2xl mb-4">
-                        <span className="text-6xl">🔥</span>
+                <div className="text-center mb-6 sm:mb-8">
+                    <div className="inline-block p-3 sm:p-4 bg-white/20 backdrop-blur-sm rounded-2xl mb-4">
+                        <span className="text-5xl sm:text-6xl">🔥</span>
                     </div>
-                    <h1 className="text-4xl font-bold text-white mb-2">Warm Lead</h1>
-                    <p className="text-orange-100">Pixel Warming Tool</p>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Warm Lead</h1>
+                    <p className="text-sm sm:text-base text-orange-100 font-medium">Premium Pixel Warming</p>
                 </div>
 
                 {/* Login Card */}
-                <div className="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-lg bg-opacity-95">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back</h2>
+                <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-10 backdrop-blur-lg bg-opacity-95">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Welcome Back</h2>
 
                     <form onSubmit={handleLogin} className="space-y-6">
                         {/* Email Input */}

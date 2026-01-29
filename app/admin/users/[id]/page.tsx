@@ -83,46 +83,46 @@ export default function UserActivity() {
                 </div>
             </nav>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 {/* User Info Header */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 flex items-center justify-between">
-                    <div className="flex items-center">
-                        <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8 flex flex-col sm:flex-row items-center sm:justify-between text-center sm:text-left gap-4">
+                    <div className="flex flex-col sm:flex-row items-center">
+                        <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-inner">
                             {targetUser?.name?.charAt(0) || targetUser?.email?.charAt(0).toUpperCase() || '?'}
                         </div>
-                        <div className="ml-6">
-                            <h2 className="text-2xl font-bold text-gray-900">{targetUser?.name || 'Unknown User'}</h2>
-                            <p className="text-gray-500">{targetUser?.email}</p>
-                            <span className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser?.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                        <div className="sm:ml-6 mt-3 sm:mt-0">
+                            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{targetUser?.name || 'Unknown User'}</h2>
+                            <p className="text-sm text-gray-500">{targetUser?.email}</p>
+                            <span className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${targetUser?.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
                                 {targetUser?.role}
                             </span>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-sm text-gray-500 font-medium font-medium">Joined on</p>
-                        <p className="text-lg font-semibold text-gray-800">{targetUser ? formatDate(targetUser.createdAt) : 'N/A'}</p>
+                    <div className="sm:text-right border-t sm:border-0 pt-4 sm:pt-0 w-full sm:w-auto">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Joined Date</p>
+                        <p className="text-base sm:text-lg font-semibold text-gray-800">{targetUser ? formatDate(targetUser.createdAt) : 'N/A'}</p>
                     </div>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <p className="text-sm text-gray-500 font-medium">Total Campaigns</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">{stats?.totalCampaigns || 0}</p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                        <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Campaigns</p>
+                        <p className="text-xl sm:text-3xl font-bold text-gray-800 mt-1">{stats?.totalCampaigns || 0}</p>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <p className="text-sm text-gray-500 font-medium">Total Orders</p>
-                        <p className="text-3xl font-bold text-indigo-600 mt-2">{stats?.totalOrders || 0}</p>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                        <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Orders</p>
+                        <p className="text-xl sm:text-3xl font-bold text-indigo-600 mt-1">{stats?.totalOrders || 0}</p>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <p className="text-sm text-gray-500 font-medium">Success Rate</p>
-                        <p className="text-3xl font-bold text-green-600 mt-2">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                        <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Success</p>
+                        <p className="text-xl sm:text-3xl font-bold text-green-600 mt-1">
                             {stats?.totalOrders > 0 ? ((stats.totalSuccess / stats.totalOrders) * 100).toFixed(1) : 0}%
                         </p>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <p className="text-sm text-gray-500 font-medium">Total Points/Credit</p>
-                        <p className="text-3xl font-bold text-orange-500 mt-2">{stats?.totalSuccess || 0}</p>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                        <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Points</p>
+                        <p className="text-xl sm:text-3xl font-bold text-orange-500 mt-1">{stats?.totalSuccess || 0}</p>
                     </div>
                 </div>
 
@@ -149,11 +149,11 @@ export default function UserActivity() {
                                 {campaigns.map((campaign) => (
                                     <tr key={campaign.id} className="hover:bg-gray-50 transition">
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-blue-600 truncate max-w-xs" title={campaign.url}>
-                                                {shortenUrl(campaign.url, 40)}
+                                            <div className="text-sm font-bold text-blue-600 truncate max-w-[120px] sm:max-w-xs" title={campaign.url}>
+                                                {shortenUrl(campaign.url, 30)}
                                             </div>
                                             {campaign.fileName && (
-                                                <div className="text-xs text-gray-500 mt-1 flex items-center">
+                                                <div className="text-[10px] text-gray-500 mt-1 flex items-center bg-gray-50 px-2 py-0.5 rounded inline-flex">
                                                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
@@ -161,22 +161,22 @@ export default function UserActivity() {
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                                             {formatDate(campaign.createdAt)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${campaign.mode === 'random' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                        <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
+                                            <span className={`px-2 inline-flex text-[10px] font-bold uppercase rounded-full ${campaign.mode === 'random' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                                                 {campaign.mode === 'random' ? 'Random' : 'Excel'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
                                             {campaign.orderCount}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900 font-semibold">{campaign.successCount}</div>
-                                            <div className="text-xs text-gray-500">{campaign.successRate.toFixed(1)}%</div>
+                                            <div className="text-sm text-gray-900 font-bold">{campaign.successCount}</div>
+                                            <div className="text-[10px] text-green-600 font-bold">{campaign.successRate.toFixed(1)}%</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-400 hidden lg:table-cell">
                                             {formatDuration(campaign.duration)}
                                         </td>
                                     </tr>
