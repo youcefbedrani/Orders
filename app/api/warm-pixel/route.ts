@@ -121,9 +121,23 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
             let customer;
             if (mode === 'excel' && excelData && excelData[i]) {
                 const row = excelData[i];
+                let firstName = row.firstName || randomItem(NAMES);
+                let lastName = row.lastName || randomItem(LASTNAMES);
+
+                // Handle full name if provided
+                if (row.name) {
+                    const nameParts = row.name.toString().trim().split(' ');
+                    if (nameParts.length > 0) {
+                        firstName = nameParts[0];
+                        if (nameParts.length > 1) {
+                            lastName = nameParts.slice(1).join(' ');
+                        }
+                    }
+                }
+
                 customer = {
-                    firstName: row.name || row.firstName || randomItem(NAMES),
-                    lastName: row.lastname || row.lastName || randomItem(LASTNAMES),
+                    firstName,
+                    lastName,
                     phone: row.phone || row.telephone || randomPhone(),
                     city: row.city || row.ville || randomItem(CITIES),
                     price: row.price || row.value || randomPrice()
