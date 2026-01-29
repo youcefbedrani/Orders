@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
                     orderCount: results.total,
                     successCount: results.successful,
                     failedCount: results.failed,
-                    successRate: parseFloat(results.successRate),
+                    successRate: parseFloat(results.successRate || '0'),
                     duration,
                     mode: mode || 'random'
                 }
