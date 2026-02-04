@@ -5,46 +5,73 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  role      String   @default("USER") // 'USER', 'ADMIN', 'BLOCKED'
-  jobs      Job[]
-  campaigns Campaign[]
+  id               String    @id @default(cuid())
+  email            String    @unique
+  password         String
+  name             String?
+  createdAt        DateTime  @default(now())
+  role             String    @default("USER") // 'USER', 'ADMIN', 'BLOCKED'
+  
+  // Email verification
+  emailVerified    Boolean   @default(false)
+  verificationCode String?
+  codeExpiresAt    DateTime?
+  codeAttempts     Int       @default(0)
+  
+  termsAccepted    Boolean   @default(false)
+  termsAcceptedAt  DateTime?
+  jobs             Job[]
+  campaigns        Campaign[]
+
+  @@index([email])
 }
 
 model Job {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  landingPageUrl String
-  fileName       String
-  columnMapping  String   // JSON string
-  status         String   @default("pending") // pending, processing, completed, failed, stopped
-  totalOrders    Int      @default(0)
-  successCount   Int      @default(0)
-  failedCount    Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  orders         Order[]
-}
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Job type and status
+  type           String    @default("PIXEL_WARMING") // PIXEL_WARMING
+  status         String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
+  
+  // Campaign details
+  url            String
+  mode           String    // 'random' or 'excel'
+  orderCount     Int
+  customPrice    Int?
+  fileName       String?
+  fileUrl        String?
+  fileSize       Int?
+  
+  // Customer data (JSON string for Excel mode)
+  customerData   String?   // JSON array of customer objects
+  
+  // Progress tracking
+  processedCount Int       @default(0)
+  successCount   Int       @default(0)
+  failedCount    Int       @default(0)
+  
+  // Timing
+  startedAt      DateTime?
+  completedAt    DateTime?
+  duration       Int?      // seconds
+  
+  // Results and errors
+  results        String?   // JSON string with detailed results
+  error          String?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-model Order {
-  id           String   @id @default(cuid())
-  jobId        String
-  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  customerName String
-  phone        String
-  status       String   @default("pending") // pending, success, failed
-  errorMsg     String?
-  createdAt    DateTime @default(now())
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Campaign {
@@ -57,7 +84,13 @@ model Campaign {
   duration     Int      // in seconds
   mode         String   // 'random' or 'excel'
   fileName     String?  // Name of the Excel file used (if any)
+  fileUrl      String?  // Path to uploaded Excel file
+  fileSize     Int?     // File size in bytes
+  results      String?  // JSON string with detailed results (orders, pixels fired)
   createdAt    DateTime @default(now())
   userId       String?
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
 }

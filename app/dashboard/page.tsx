@@ -12,6 +12,7 @@ export default function Dashboard() {
     const [url, setUrl] = useState('');
     const [mode, setMode] = useState<'random' | 'excel'>('random');
     const [numberOfOrders, setNumberOfOrders] = useState(10);
+    const [customPrice, setCustomPrice] = useState(6000); // Custom price for pixel warming
     const [file, setFile] = useState<File | null>(null);
     const [customerData, setCustomerData] = useState<any[]>([]);
     const [processing, setProcessing] = useState(false);
@@ -25,26 +26,70 @@ export default function Dashboard() {
     const [mappingConfirmed, setMappingConfirmed] = useState(false);
     const [rawExcelData, setRawExcelData] = useState<any[]>([]);
     const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
+    const [activeJobId, setActiveJobId] = useState<string | null>(null);
+    const [jobProgress, setJobProgress] = useState<any>(null);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
         if (!userData) {
             router.push('/login');
         } else {
-            setUser(JSON.parse(userData));
+            const parsedUser = JSON.parse(userData);
+
+            // Check if email is verified
+            // If emailVerified is undefined, we assume true because the login API enforces it before returning a user object
+            // This prevents redirect loops if the user object in localStorage is missing the field
+            if (parsedUser.emailVerified === false && parsedUser.role !== 'ADMIN') {
+                router.push(`/verify-email?email=${parsedUser.email}`);
+                return;
+            }
+
+            setUser(parsedUser);
         }
     }, [router]);
 
     // Timer effect
     useEffect(() => {
-        if (processing) {
-            setElapsedTime(0);
+        if (processing || activeJobId) {
+            // Only reset if we just started
+            if (processing && !activeJobId) setElapsedTime(0);
+
             const interval = setInterval(() => {
                 setElapsedTime(prev => prev + 1);
             }, 1000);
             return () => clearInterval(interval);
         }
-    }, [processing]);
+    }, [processing, activeJobId]);
+
+    // Job Polling Effect
+    useEffect(() => {
+        let pollInterval: NodeJS.Timeout;
+
+        if (activeJobId) {
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/jobs/${activeJobId}/progress`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setJobProgress(data);
+
+                        if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                            setActiveJobId(null);
+                            setResults(data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : data);
+                            setProcessing(false);
+                            clearInterval(pollInterval);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000);
+        }
+
+        return () => {
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [activeJobId]);
 
     // Fetch campaign history
     useEffect(() => {
@@ -82,9 +127,23 @@ export default function Dashboard() {
         setMappingConfirmed(false);
 
         const buffer = await uploadedFile.arrayBuffer();
-        const workbook = XLSX.read(buffer);
+
+        // Read with proper encoding to support Arabic characters
+        const workbook = XLSX.read(buffer, {
+            type: 'array',
+            codepage: 65001, // UTF-8 encoding for Arabic support
+            cellDates: true,
+            cellNF: false,
+            cellText: false
+        });
+
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        // Convert to JSON with raw values to preserve Arabic text
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            raw: false, // Convert to strings to preserve Arabic
+            defval: '' // Default value for empty cells
+        });
 
         setRawExcelData(jsonData);
 
@@ -146,28 +205,69 @@ export default function Dashboard() {
             return;
         }
 
+        if (!user?.id) {
+            alert('Your session has expired or is invalid. Please refresh the page or try logging in again.');
+            return;
+        }
+
         setProcessing(true);
         setResults(null);
 
         try {
-            const response = await fetch('/api/warm-pixel', {
+            let uploadedFileInfo = null;
+
+            // Upload file to server if in Excel mode
+            if (mode === 'excel' && file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const uploadResponse = await fetch('/api/upload-file', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (uploadResponse.ok) {
+                    uploadedFileInfo = await uploadResponse.json();
+                } else {
+                    console.error('File upload failed');
+                }
+            }
+
+            // Create asynchronous background job
+            const response = await fetch('/api/jobs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     url,
-                    numberOfOrders: mode === 'random' ? numberOfOrders : customerData.length,
+                    orderCount: mode === 'random' ? numberOfOrders : customerData.length,
                     mode,
-                    customerData: mode === 'excel' ? customerData : undefined,
+                    customPrice,
+                    customerData: mode === 'excel' ? JSON.stringify(customerData) : undefined,
                     userId: user?.id,
-                    fileName: file?.name
+                    fileName: uploadedFileInfo?.filename || file?.name,
+                    fileUrl: uploadedFileInfo?.fileUrl,
+                    fileSize: uploadedFileInfo?.fileSize
                 })
             });
 
             const data = await response.json();
-            setResults(data);
+
+            if (response.ok) {
+                // Job created successfully, real-time feedback will come from polling /api/jobs
+                setActiveJobId(data.jobId);
+                setJobProgress({
+                    status: 'PENDING',
+                    processedCount: 0,
+                    orderCount: mode === 'random' ? numberOfOrders : customerData.length
+                });
+                setResults(null);
+            } else {
+                alert(data.error || 'Failed to start warming');
+                setProcessing(false);
+            }
         } catch (error) {
-            alert('Error warming pixel');
-        } finally {
+            console.error('Error starting warming:', error);
+            alert('Error starting pixel warming');
             setProcessing(false);
         }
     };
@@ -175,73 +275,91 @@ export default function Dashboard() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50">
+        <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
-                <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center space-x-3 self-start sm:self-center">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                            <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
                         <div>
-                            <h1 className="text-2xl sm:text-3xl font-bold">🔥 Warm Lead</h1>
-                            <p className="text-xs sm:text-sm text-orange-100 italic">Premium Pixel Warming</p>
+                            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">PixWarm Dashboard</h1>
+                            <p className="text-xs sm:text-sm text-slate-500 font-medium">Premium Pixel Warming</p>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between w-full sm:w-auto sm:space-x-4 border-t border-white/10 sm:border-0 pt-4 sm:pt-0">
+                    <div className="flex items-center justify-between w-full sm:w-auto sm:space-x-4 border-t border-slate-100 sm:border-0 pt-3 sm:pt-0">
                         <div className="text-left sm:text-right">
-                            <p className="font-semibold text-sm sm:text-base">{user?.name || 'User'}</p>
-                            <p className="text-[10px] sm:text-xs text-orange-100">{user?.email}</p>
+                            <p className="font-semibold text-sm sm:text-base text-slate-700">{user?.name || 'User'}</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500">{user?.email}</p>
                         </div>
-                        <button
-                            onClick={handleLogout}
-                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg transition flex items-center space-x-2 text-sm"
-                        >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                            <span>Logout</span>
-                        </button>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => router.push('/profile')}
+                                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition flex items-center space-x-2 text-sm font-medium"
+                            >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span>Profile</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition flex items-center space-x-2 text-sm font-medium"
+                            >
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                <span>Logout</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
-                {/* Stats Cards */}
-                {results && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                {/* Stats Cards or Progress */}
+                {(results || jobProgress) && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
                         <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-blue-500">
                             <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Total Orders</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-gray-800">{results.total}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-gray-800">{results?.total || jobProgress?.orderCount || 0}</p>
                         </div>
                         <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-green-500">
                             <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Successful</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-green-600">{results.successful}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-green-600">{results?.successful || jobProgress?.successCount || 0}</p>
                         </div>
                         <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-red-500">
                             <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Failed</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-red-600">{results.failed}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-red-600">{results?.failed || jobProgress?.failedCount || 0}</p>
                         </div>
                         <div className="bg-white rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
-                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">Success Rate</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-purple-600">{results.successRate}%</p>
+                            <p className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">
+                                {jobProgress?.status === 'RUNNING' || jobProgress?.status === 'PENDING' ? 'Progress' : 'Success Rate'}
+                            </p>
+                            <p className="text-2xl sm:text-3xl font-bold text-purple-600">
+                                {jobProgress?.status === 'RUNNING' || jobProgress?.status === 'PENDING'
+                                    ? `${Math.round(((jobProgress.processedCount || 0) / (jobProgress.orderCount || 1)) * 100)}%`
+                                    : `${results?.successRate}%`
+                                }
+                            </p>
                         </div>
                     </div>
                 )}
 
                 {/* Main Card */}
-                <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 mb-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <span className="bg-orange-100 p-2 rounded-lg mr-3">⚙️</span>
+                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-5 sm:p-8 mb-6 border border-slate-100">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-6 flex items-center">
+                        <span className="bg-indigo-50 text-indigo-600 p-2 rounded-lg mr-3">⚙️</span>
                         Configuration
                     </h2>
 
                     {/* Landing Page URL */}
                     <div className="mb-6">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
                             Landing Page URL
                         </label>
                         <input
@@ -249,74 +367,98 @@ export default function Dashboard() {
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             placeholder="https://your-website.com/product"
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none text-slate-800 placeholder-slate-400"
                         />
-                        <p className="text-sm text-gray-500 mt-1">Any website URL (Shopify, WooCommerce, custom site, etc.)</p>
+                        <p className="text-sm text-slate-500 mt-1">Any website URL (Shopify, WooCommerce, custom site, etc.)</p>
                     </div>
 
                     {/* Mode Selection */}
                     <div className="mb-6">
-                        <label className="block text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider text-xs">
+                        <label className="block text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wider text-xs">
                             Data Source
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <button
                                 onClick={() => setMode('random')}
-                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'random' ? 'border-orange-500 bg-orange-50 shadow-inner' : 'border-gray-100 hover:border-orange-200 bg-gray-50/50'}`}
+                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'random' ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white'}`}
                             >
                                 <div className="flex items-center space-x-3">
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'random' ? 'border-orange-500' : 'border-gray-300'}`}>
-                                        {mode === 'random' && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'random' ? 'border-indigo-500' : 'border-slate-300'}`}>
+                                        {mode === 'random' && <div className="w-3 h-3 bg-indigo-500 rounded-full" />}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-800">Random Data</p>
-                                        <p className="text-xs text-gray-500">Auto-generate customers</p>
+                                        <p className="font-bold text-slate-800">Random Data</p>
+                                        <p className="text-xs text-slate-500">Auto-generate customers</p>
                                     </div>
                                 </div>
                             </button>
 
                             <button
                                 onClick={() => setMode('excel')}
-                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'excel' ? 'border-orange-500 bg-orange-50 shadow-inner' : 'border-gray-100 hover:border-orange-200 bg-gray-50/50'}`}
+                                className={`p-4 rounded-xl border-2 transition text-left ${mode === 'excel' ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white'}`}
                             >
                                 <div className="flex items-center space-x-3">
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'excel' ? 'border-orange-500' : 'border-gray-300'}`}>
-                                        {mode === 'excel' && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${mode === 'excel' ? 'border-indigo-500' : 'border-slate-300'}`}>
+                                        {mode === 'excel' && <div className="w-3 h-3 bg-indigo-500 rounded-full" />}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-800">Excel Upload</p>
-                                        <p className="text-xs text-gray-500">Use your own data</p>
+                                        <p className="font-bold text-slate-800">Excel Upload</p>
+                                        <p className="text-xs text-slate-500">Use your own data</p>
                                     </div>
                                 </div>
                             </button>
                         </div>
                     </div>
 
+                    {/* Custom Price Input - Shown for both modes */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            💰 Purchase Value (DZD)
+                        </label>
+                        <input
+                            type="number"
+                            value={customPrice}
+                            onChange={(e) => setCustomPrice(parseInt(e.target.value) || 6000)}
+                            min="100"
+                            max="1000000"
+                            step="100"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none text-slate-800 placeholder-slate-400"
+                        />
+                        <p className="text-sm text-slate-500 mt-1">
+                            {mode === 'random'
+                                ? 'Set the purchase value to send to Facebook/TikTok pixels (e.g., 6000 DZD)'
+                                : 'Default purchase value for Excel rows without prices (e.g., 6000 DZD)'
+                            }
+                        </p>
+                    </div>
+
                     {/* Random Mode */}
                     {mode === 'random' && (
-                        <div className="mb-6">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Number of Orders
-                            </label>
-                            <input
-                                type="number"
-                                value={numberOfOrders}
-                                onChange={(e) => setNumberOfOrders(parseInt(e.target.value) || 10)}
-                                min="1"
-                                max="500"
-                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                            />
-                            <p className="text-sm text-gray-500 mt-1">Recommended: 10-200 orders (Max: 500)</p>
-                        </div>
+                        <>
+                            <div className="mb-6">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Number of Orders
+                                </label>
+                                <input
+                                    type="number"
+                                    value={numberOfOrders}
+                                    onChange={(e) => setNumberOfOrders(parseInt(e.target.value) || 10)}
+                                    min="1"
+                                    max="500"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none text-slate-800 placeholder-slate-400"
+                                />
+                                <p className="text-sm text-slate-500 mt-1">Recommended: 10-200 orders (Max: 500)</p>
+                            </div>
+                        </>
                     )}
 
                     {/* Excel Mode */}
                     {mode === 'excel' && (
                         <div className="mb-6">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Upload Excel File
                             </label>
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 transition">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-slate-50/50">
                                 <input
                                     type="file"
                                     accept=".xlsx,.xls,.csv"
@@ -325,12 +467,12 @@ export default function Dashboard() {
                                     id="file-upload"
                                 />
                                 <label htmlFor="file-upload" className="cursor-pointer">
-                                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                     </svg>
-                                    <p className="mt-2 text-sm text-gray-600">
+                                    <p className="mt-2 text-sm text-slate-600">
                                         {file ? (
-                                            <span className="text-orange-600 font-semibold">📄 {file.name} ({customerData.length} customers)</span>
+                                            <span className="text-indigo-600 font-semibold">📄 {file.name} ({customerData.length} customers)</span>
                                         ) : (
                                             <>Click to upload Excel or CSV</>
                                         )}
@@ -340,10 +482,10 @@ export default function Dashboard() {
 
                             {/* Column Mapping Display */}
                             {showColumnMapping && (
-                                <div className="mt-4 p-6 bg-blue-50 border border-blue-200 rounded-xl">
+                                <div className="mt-4 p-6 bg-slate-50 border border-slate-200 rounded-xl">
                                     <div className="flex items-center justify-between mb-4">
-                                        <h4 className="font-bold text-blue-900 flex items-center text-lg">
-                                            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <h4 className="font-bold text-slate-800 flex items-center text-lg">
+                                            <svg className="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             Column Mapping
@@ -372,7 +514,7 @@ export default function Dashboard() {
                                             return (
                                                 <div key={field.key}>
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider">
+                                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                                                             {field.label} {field.required && <span className="text-red-500">*</span>}
                                                         </label>
                                                         {isAutoDetected && (
@@ -387,7 +529,7 @@ export default function Dashboard() {
                                                             setManualMapping({ ...manualMapping, [field.key]: e.target.value });
                                                             setMappingConfirmed(false);
                                                         }}
-                                                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
+                                                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm text-slate-700"
                                                     >
                                                         <option value="">Select Column...</option>
                                                         {availableHeaders.map(header => (
@@ -402,12 +544,12 @@ export default function Dashboard() {
                                     {!mappingConfirmed ? (
                                         <button
                                             onClick={confirmMapping}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition transform hover:scale-[1.02]"
+                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-md transition transform hover:scale-[1.02]"
                                         >
                                             Confirm Column Mapping
                                         </button>
                                     ) : (
-                                        <div className="text-center p-2 bg-green-100 border border-green-200 rounded-lg text-green-800 text-sm font-medium">
+                                        <div className="text-center p-2 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm font-medium">
                                             Mapping confirmed! Ready to start.
                                         </div>
                                     )}
@@ -419,23 +561,25 @@ export default function Dashboard() {
                     {/* Start Button */}
                     <button
                         onClick={startWarming}
-                        disabled={processing || !url || (mode === 'excel' && (!customerData.length || !mappingConfirmed))}
-                        className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform hover:scale-105 transition duration-200 disabled:transform-none disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        disabled={processing || !!activeJobId || !url || (mode === 'excel' && (!customerData.length || !mappingConfirmed))}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform hover:scale-[1.01] transition duration-200 disabled:transform-none disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
-                        {processing ? (
+                        {processing || activeJobId ? (
                             <>
                                 <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                <span>Warming Pixel... ({results?.successful || 0}/{mode === 'random' ? numberOfOrders : customerData.length}) • {formatDuration(elapsedTime)}</span>
+                                <span>
+                                    {jobProgress?.status === 'PENDING' ? 'Queued...' : `Warming Pixel... (${jobProgress?.processedCount || 0}/${jobProgress?.orderCount || (mode === 'random' ? numberOfOrders : customerData.length)})`} • {formatDuration(elapsedTime)}
+                                </span>
                             </>
                         ) : (
                             <>
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
-                                <span>🔥 Start Pixel Warming</span>
+                                <span>Start Pixel Warming</span>
                             </>
                         )}
                     </button>
@@ -443,11 +587,11 @@ export default function Dashboard() {
 
                 {/* Results */}
                 {results && results.orders && (
-                    <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8 mb-6">
+                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-4 md:p-8 mb-6 border border-slate-100">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2 md:mb-0">Generated Orders</h2>
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2 md:mb-0">Generated Orders</h2>
                             {results.duration && (
-                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                <div className="flex items-center space-x-2 text-sm text-slate-600">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -455,11 +599,11 @@ export default function Dashboard() {
                                 </div>
                             )}
                         </div>
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                        <div className="space-y-3 max-h-[60vh] sm:max-h-96 overflow-y-auto pr-1">
                             {results.orders.map((order: any, i: number) => (
-                                <div key={i} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg gap-3 ${order.status === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                                <div key={i} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-xl gap-3 ${order.status?.toLowerCase() === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                                     <div className="flex items-center space-x-3">
-                                        {order.status === 'success' ? (
+                                        {order.status?.toLowerCase() === 'success' ? (
                                             <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -472,22 +616,25 @@ export default function Dashboard() {
                                                 </svg>
                                             </div>
                                         )}
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-gray-800 truncate">{order.name}</p>
-                                            <p className="text-sm text-gray-600 truncate">{order.phone} • {order.city} • {order.value} DZD</p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-slate-800 truncate text-sm sm:text-base">{order.name}</p>
+                                            <p className="text-xs sm:text-sm text-slate-600 truncate">{order.phone} • {order.city} • {order.price || order.value} DZD</p>
                                         </div>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${order.status === 'success' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                                        {order.status === 'success' ? '✓ Pixel Fired' : '✗ Failed'}
-                                    </span>
+                                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto mt-1 sm:mt-0">
+                                        <span className="sm:hidden text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+                                        <span className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shadow-sm ${order.status?.toLowerCase() === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {order.status?.toLowerCase() === 'success' ? '✓ Pixel Fired' : '✗ Failed'}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
                         {/* Next Steps */}
-                        <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
-                            <h3 className="font-semibold text-orange-900 mb-2">✅ Next Steps</h3>
-                            <ul className="text-sm text-orange-800 space-y-1">
+                        <div className="mt-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <h3 className="font-semibold text-indigo-900 mb-2">✅ Next Steps</h3>
+                            <ul className="text-sm text-indigo-800 space-y-1">
                                 <li>• Check Facebook Events Manager for Purchase events</li>
                                 <li>• Check TikTok Events Manager for CompletePayment events</li>
                                 <li>• Your pixel is warmed up for better ad performance!</li>
@@ -498,47 +645,47 @@ export default function Dashboard() {
 
                 {/* Campaign History */}
                 {campaigns.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-xl p-4 md:p-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Campaign History</h2>
+                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-4 md:p-8 border border-slate-100">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-6">Campaign History</h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                             <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
-                                <p className="text-sm text-gray-600">Total Campaigns</p>
-                                <p className="text-2xl font-bold text-gray-800">{campaignStats?.totalCampaigns || 0}</p>
+                                <p className="text-sm text-slate-600">Total Campaigns</p>
+                                <p className="text-2xl font-bold text-slate-800">{campaignStats?.totalCampaigns || 0}</p>
                             </div>
                             <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
-                                <p className="text-sm text-gray-600">Total Orders</p>
+                                <p className="text-sm text-slate-600">Total Orders</p>
                                 <p className="text-2xl font-bold text-green-600">{campaignStats?.totalOrders || 0}</p>
                             </div>
                             <div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
-                                <p className="text-sm text-gray-600">Success Rate</p>
+                                <p className="text-sm text-slate-600">Success Rate</p>
                                 <p className="text-2xl font-bold text-purple-600">
                                     {campaignStats?.totalOrders > 0
                                         ? ((campaignStats.totalSuccess / campaignStats.totalOrders) * 100).toFixed(1)
                                         : 0}%
                                 </p>
                             </div>
-                            <div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
-                                <p className="text-sm text-gray-600">Total Success</p>
-                                <p className="text-2xl font-bold text-orange-600">{campaignStats?.totalSuccess || 0}</p>
+                            <div className="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
+                                <p className="text-sm text-slate-600">Total Success</p>
+                                <p className="text-2xl font-bold text-indigo-600">{campaignStats?.totalSuccess || 0}</p>
                             </div>
                         </div>
 
                         <div className="space-y-3">
                             {campaigns.slice(0, 10).map((campaign: any, i: number) => (
-                                <div key={campaign.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-300 transition">
+                                <div key={campaign.id} className="border border-slate-200 rounded-lg p-4 hover:border-indigo-300 transition bg-slate-50/30">
                                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-gray-800 truncate" title={campaign.url}>
+                                            <p className="font-semibold text-slate-800 truncate" title={campaign.url}>
                                                 🔗 {shortenUrl(campaign.url, 50)}
                                             </p>
-                                            <p className="text-sm text-gray-600 mt-1">
+                                            <p className="text-sm text-slate-600 mt-1">
                                                 {formatDate(campaign.createdAt)} • {campaign.orderCount} orders • {campaign.successRate.toFixed(1)}% success
                                                 {campaign.fileName && <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium border border-blue-100">📄 {campaign.fileName}</span>}
                                             </p>
                                         </div>
                                         <div className="flex items-center space-x-4 text-sm">
-                                            <div className="flex items-center space-x-1 text-gray-600">
+                                            <div className="flex items-center space-x-1 text-slate-600">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
@@ -555,6 +702,6 @@ export default function Dashboard() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

@@ -13,22 +13,25 @@ export async function POST(request: NextRequest) {
         }
 
         // Auto-create admin if it's the specific credentials
-        if (email === 'admin@admin.com' && password === 'admin') {
+        if (email === 'admin@admin.com' && password === 'admin123') {
             let admin = await prisma.user.findUnique({ where: { email } });
 
             if (!admin) {
-                const hashedPassword = await bcrypt.hash('admin', 10);
+                const hashedPassword = await bcrypt.hash('admin123', 10);
                 admin = await prisma.user.create({
                     data: {
                         name: 'System Admin',
                         email: 'admin@admin.com',
                         password: hashedPassword,
-                        role: 'ADMIN'
+                        role: 'ADMIN',
+                        emailVerified: true,
+                        termsAccepted: true,
+                        termsAcceptedAt: new Date()
                     }
                 });
             } else {
                 // If exists but wrong password (e.g. was changed manually), we verify below
-                // But for "admin" password specifically, we might want to respect the hash check
+                // But for "admin123" password specifically, we might want to respect the hash check
                 // For simplicity: continue standard check
             }
         }
@@ -49,12 +52,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
         }
 
+        // Check email verification
+        if (!user.emailVerified) {
+            return NextResponse.json({
+                error: 'Please verify your email before logging in',
+                requiresVerification: true,
+                email: user.email
+            }, { status: 403 });
+        }
+
         // Return user info
         return NextResponse.json({
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            emailVerified: user.emailVerified
         });
 
     } catch (error) {

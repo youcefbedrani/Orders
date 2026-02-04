@@ -36,7 +36,9 @@ const PATTERNS = {
     ],
     price: [
         'price', 'prix', 'amount', 'montant', 'value', 'valeur',
-        'total', 'cost', 'coût', 'cout', 'tarif', 'rate'
+        'total', 'cost', 'coût', 'cout', 'tarif', 'rate',
+        'charge', 'total charge', 'order total', 'order value',
+        'sum', 'somme', 'payment', 'paiement', 'revenue'
     ]
 };
 

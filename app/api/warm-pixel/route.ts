@@ -10,15 +10,16 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        const { url, numberOfOrders, mode, customerData, userId, fileName } = await request.json();
+        const { url, numberOfOrders, mode, customerData, userId, fileName, customPrice, fileUrl, fileSize } = await request.json();
 
         console.log(`🔥 Warming pixel for: ${url}`);
         console.log(`📊 Mode: ${mode}`);
         console.log(`📊 Number of orders: ${numberOfOrders}`);
+        console.log(`💰 Custom price: ${customPrice || 6000} DZD`);
         console.log(`👤 User: ${userId}`);
         if (fileName) console.log(`📄 File: ${fileName}`);
 
-        const results = await warmPixel(url, numberOfOrders, mode, customerData);
+        const results = await warmPixel(url, numberOfOrders, mode, customerData, customPrice);
 
         // Calculate duration
         const endTime = Date.now();
@@ -26,18 +27,27 @@ export async function POST(request: NextRequest) {
 
         // Save campaign to database
         try {
+            const campaignData: any = {
+                url,
+                orderCount: results.total,
+                successCount: results.successful,
+                failedCount: results.failed,
+                successRate: parseFloat(results.successRate || '0'),
+                duration,
+                mode: mode || 'random',
+                fileName: fileName || undefined,
+                userId: userId || undefined,
+                results: JSON.stringify(results.orders || []) // Save detailed history
+            };
+
+            // If Excel mode, store file reference
+            if (mode === 'excel' && fileUrl) {
+                campaignData.fileUrl = fileUrl;
+                campaignData.fileSize = fileSize || 0;
+            }
+
             await prisma.campaign.create({
-                data: {
-                    url,
-                    orderCount: results.total,
-                    successCount: results.successful,
-                    failedCount: results.failed,
-                    successRate: parseFloat(results.successRate || '0'),
-                    duration,
-                    mode: mode || 'random',
-                    fileName: fileName || undefined,
-                    userId: userId || undefined
-                }
+                data: campaignData
             });
         } catch (dbError) {
             console.error('Error saving campaign:', dbError);
@@ -73,24 +83,53 @@ function randomPhone() {
 }
 
 function randomPrice() {
-    return (Math.random() * 5000 + 1000).toFixed(2);
+    // Fixed price: 6000 DZD for all purchases
+    return "6000.00";
 }
 
-function generateRandomCustomer() {
+/**
+ * Clean and parse price value from Excel
+ * Removes currency symbols, commas, whitespace
+ * Returns a valid number or uses custom default price
+ */
+function parsePrice(value: any, defaultPrice: number): string {
+    if (!value) return defaultPrice.toFixed(2);
+
+    // Convert to string and clean
+    const cleaned = String(value)
+        .trim()
+        .replace(/[^\d.,]/g, '') // Remove everything except digits, dots, commas
+        .replace(/,/g, ''); // Remove commas (e.g., "2,500" -> "2500")
+
+    const parsed = parseFloat(cleaned);
+
+    // Validate: must be a valid number and greater than 0
+    if (isNaN(parsed) || parsed <= 0) {
+        console.warn(`Invalid price value: "${value}", using custom price ${defaultPrice} DZD`);
+        return defaultPrice.toFixed(2);
+    }
+
+    return parsed.toFixed(2);
+}
+
+function generateRandomCustomer(defaultPrice: number) {
     return {
         firstName: randomItem(NAMES),
         lastName: randomItem(LASTNAMES),
         phone: randomPhone(),
         city: randomItem(CITIES),
-        price: randomPrice()
+        price: defaultPrice.toFixed(2)
     };
 }
 
-async function warmPixel(url: string, numberOfOrders: number, mode: string, excelData?: any[]) {
+async function warmPixel(url: string, numberOfOrders: number, mode: string, excelData?: any[], customPrice?: number) {
     let browser;
     let successCount = 0;
     let failCount = 0;
     const orders = [];
+
+    // Use custom price or default to 6000
+    const defaultPrice = customPrice || 6000;
 
     try {
         browser = await puppeteer.launch({
@@ -144,10 +183,10 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
                     lastName,
                     phone: row.phone || row.telephone || randomPhone(),
                     city: row.city || row.ville || randomItem(CITIES),
-                    price: row.price || row.value || randomPrice()
+                    price: parsePrice(row.price || row.value || row.total || row.montant || row.amount, defaultPrice)
                 };
             } else {
-                customer = generateRandomCustomer();
+                customer = generateRandomCustomer(defaultPrice);
             }
 
             const fullName = `${customer.firstName} ${customer.lastName}`;
@@ -163,34 +202,39 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
                 // Fire purchase events
-                await page.evaluate((customerData) => {
+                const priceValue = Number(customer.price); // Convert to number
+
+                await page.evaluate((priceNum) => {
                     // Facebook Pixel
                     if (typeof (window as any).fbq !== 'undefined') {
                         (window as any).fbq('track', 'Purchase', {
-                            value: parseFloat(customerData.price),
+                            value: priceNum,
                             currency: 'DZD',
                             content_name: 'Product',
                             content_type: 'product'
                         });
+                        console.log('✅ Facebook Pixel fired: Purchase', priceNum, 'DZD');
                     }
 
                     // TikTok Pixel
                     if (typeof (window as any).ttq !== 'undefined') {
                         (window as any).ttq.track('CompletePayment', {
-                            value: parseFloat(customerData.price),
+                            value: priceNum,
                             currency: 'DZD'
                         });
+                        console.log('✅ TikTok Pixel fired: CompletePayment', priceNum, 'DZD');
                     }
 
                     // Google Analytics
                     if (typeof (window as any).gtag !== 'undefined') {
                         (window as any).gtag('event', 'purchase', {
                             transaction_id: 'T' + Date.now(),
-                            value: parseFloat(customerData.price),
+                            value: priceNum,
                             currency: 'DZD'
                         });
+                        console.log('✅ Google Analytics fired: purchase', priceNum, 'DZD');
                     }
-                }, customer);
+                }, priceValue);
 
                 console.log(`  ✅ Success: ${fullName} - ${customer.price} DZD`);
                 successCount++;

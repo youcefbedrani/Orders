@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Warm Lead - Pixel Warming Tool',
-  description: 'Generate fake purchase events to warm up your Facebook, TikTok, and Google Analytics pixels',
-  keywords: ['pixel warming', 'facebook pixel', 'tiktok pixel', 'ad optimization', 'e-commerce'],
+  title: "PixWarm - Premium Pixel Warming",
+  description: "Advanced pixel warming and lead generation automation platform",
 };
 
 export default function RootLayout({
