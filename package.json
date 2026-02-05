@@ -4,7 +4,7 @@
   "description": "PixWarm - Premium Pixel Warming Automation Tool",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && mkdir -p .next/standalone/public && cp -r public/* .next/standalone/public/ || true && mkdir -p .next/standalone/.next/static && cp -r .next/static/* .next/standalone/.next/static/ || true && cp -r prisma .next/standalone/prisma",
+    "build": "next build",
     "start": "node .next/standalone/server.js",
     "postinstall": "prisma generate",
     "lint": "next lint"

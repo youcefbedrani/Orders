@@ -47,6 +47,13 @@ COPY . .
 
 # Build the application
 RUN npm run build
+RUN ls -la .next
+RUN ls -la .next/standalone || echo "Standalone folder missing!"
+
+# Manual copy of static assets for standalone mode
+RUN mkdir -p .next/standalone/public && cp -r public/* .next/standalone/public/ || true
+RUN mkdir -p .next/standalone/.next/static && cp -r .next/static/* .next/standalone/.next/static/ || true
+RUN cp -r prisma .next/standalone/prisma
 
 # Create uploads directory
 RUN mkdir -p public/uploads
