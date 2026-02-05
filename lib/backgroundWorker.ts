@@ -125,7 +125,7 @@ export async function processJob(job: JobData) {
 
                 // Inject purchase event
                 const pixelResult = await page.evaluate((customerData) => {
-                    const pixelsFired = [];
+                    const pixelsFired: string[] = [];
                     const win = window as any;
 
                     // Helper to safely track
