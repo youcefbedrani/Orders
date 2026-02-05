@@ -244,7 +244,7 @@ function VerifyEmailContent() {
                 © 2026 PixWarm. All rights reserved.
             </p>
         </div>
-        </div >
+
     );
 }
 
