@@ -121,40 +121,52 @@ export async function processJob(job: JobData) {
             try {
                 await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
                 await page.setViewport({ width: 1920, height: 1080 });
-                await page.goto(job.url, { waitUntil: 'networkidle2', timeout: 30000 });
+                await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
                 // Inject purchase event
                 const pixelResult = await page.evaluate((customerData) => {
                     const pixelsFired = [];
                     const win = window as any;
-                    if (typeof win.fbq === 'function') {
-                        win.fbq('track', 'Purchase', {
-                            value: parseFloat(customerData.price),
-                            currency: 'DZD',
-                            content_name: `${customerData.firstName} ${customerData.lastName}`,
-                            content_category: 'Order'
-                        });
-                        pixelsFired.push('Facebook');
-                    }
-                    if (typeof win.ttq === 'function') {
-                        win.ttq.track('CompletePayment', {
-                            value: parseFloat(customerData.price),
-                            currency: 'DZD',
-                            content_name: `${customerData.firstName} ${customerData.lastName}`
-                        });
-                        pixelsFired.push('TikTok');
-                    }
-                    if (typeof win.gtag === 'function') {
-                        win.gtag('event', 'purchase', {
-                            value: parseFloat(customerData.price),
-                            currency: 'DZD',
-                            items: [{
-                                item_name: `${customerData.firstName} ${customerData.lastName}`,
-                                price: parseFloat(customerData.price)
-                            }]
-                        });
-                        pixelsFired.push('Google');
-                    }
+
+                    // Helper to safely track
+                    const safeTrack = () => {
+                        try {
+                            if (typeof win.fbq === 'function') {
+                                win.fbq('track', 'Purchase', {
+                                    value: parseFloat(customerData.price),
+                                    currency: 'DZD',
+                                    content_name: `${customerData.firstName} ${customerData.lastName}`,
+                                    content_category: 'Order'
+                                });
+                                pixelsFired.push('Facebook');
+                            }
+                            if (typeof win.ttq === 'function') {
+                                win.ttq.track('CompletePayment', {
+                                    value: parseFloat(customerData.price),
+                                    currency: 'DZD',
+                                    content_name: `${customerData.firstName} ${customerData.lastName}`
+                                });
+                                pixelsFired.push('TikTok');
+                            }
+                            if (typeof win.gtag === 'function') {
+                                win.gtag('event', 'purchase', {
+                                    value: parseFloat(customerData.price),
+                                    currency: 'DZD',
+                                    items: [{
+                                        item_name: `${customerData.firstName} ${customerData.lastName}`,
+                                        price: parseFloat(customerData.price)
+                                    }]
+                                });
+                                pixelsFired.push('Google');
+                            }
+                        } catch (err) {
+                            console.error('Pixel tracking error in browser context:', err);
+                        }
+                    };
+
+                    // Try immediately
+                    safeTrack();
+
                     return pixelsFired;
                 }, customer);
 
