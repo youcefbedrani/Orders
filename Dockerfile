@@ -36,7 +36,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Copy node_modules from local (faster in slow network environments)
-COPY node_modules ./node_modules
+# Install dependencies
+RUN npm ci
 
 # Generate Prisma Client
 RUN npx prisma generate
