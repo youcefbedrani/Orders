@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import { simulateCheckoutOrder } from '@/lib/orderProcessor';
 
 export async function POST(request: NextRequest) {
     try {
@@ -7,8 +8,17 @@ export async function POST(request: NextRequest) {
 
         console.log('Processing order for:', data.fullname, data.phone);
 
-        // Submit order to landing page using Puppeteer
-        const success = await submitWithPuppeteer(url, data);
+        // Try fast submission first (HTTP Request)
+        console.log('⚡ Attempting fast submission for:', data.fullname);
+        let success = await simulateCheckoutOrder(url, data);
+
+        if (success) {
+            console.log('✅ Fast submission successful');
+        } else {
+            console.warn('⚠️ Fast submission failed, falling back to Puppeteer...');
+            // Fallback to Puppeteer
+            success = await submitWithPuppeteer(url, data);
+        }
 
         return NextResponse.json({ success });
     } catch (error) {
