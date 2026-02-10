@@ -122,11 +122,14 @@ function generateRandomCustomer(defaultPrice: number) {
     };
 }
 
+// Parallel processing configuration
+const CONCURRENT_LIMIT = 10; // Process 10 orders simultaneously
+
 async function warmPixel(url: string, numberOfOrders: number, mode: string, excelData?: any[], customPrice?: number) {
     let browser;
     let successCount = 0;
     let failCount = 0;
-    const orders = [];
+    const orders: any[] = [];
 
     // Use custom price or default to 6000
     const defaultPrice = customPrice || 6000;
@@ -157,8 +160,9 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
             ignoreDefaultArgs: ['--enable-automation']
         });
 
-        for (let i = 0; i < numberOfOrders; i++) {
-            const page = await browser.newPage();
+        // Process orders in parallel batches
+        const processOrder = async (i: number) => {
+            const page = await browser!.newPage();
 
             // Get customer data based on mode
             let customer;
@@ -190,21 +194,22 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
             }
 
             const fullName = `${customer.firstName} ${customer.lastName}`;
-
-            console.log(`[${i + 1}/${numberOfOrders}] Generating purchase for: ${fullName}`);
+            console.log(`[${i + 1}/${numberOfOrders}] Processing: ${fullName}`);
 
             try {
                 await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
                 await page.setViewport({ width: 1920, height: 1080 });
 
-                // Visit page
-                await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Visit page with faster load condition
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+                // Reduced wait time for pixel scripts to load
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Fire purchase events
-                const priceValue = Number(customer.price); // Convert to number
+                const priceValue = Number(customer.price);
 
-                await page.evaluate((priceNum) => {
+                await page.evaluate((priceNum: number) => {
                     // Facebook Pixel
                     if (typeof (window as any).fbq !== 'undefined') {
                         (window as any).fbq('track', 'Purchase', {
@@ -213,7 +218,6 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
                             content_name: 'Product',
                             content_type: 'product'
                         });
-                        console.log('✅ Facebook Pixel fired: Purchase', priceNum, 'DZD');
                     }
 
                     // TikTok Pixel
@@ -222,7 +226,6 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
                             value: priceNum,
                             currency: 'DZD'
                         });
-                        console.log('✅ TikTok Pixel fired: CompletePayment', priceNum, 'DZD');
                     }
 
                     // Google Analytics
@@ -232,40 +235,57 @@ async function warmPixel(url: string, numberOfOrders: number, mode: string, exce
                             value: priceNum,
                             currency: 'DZD'
                         });
-                        console.log('✅ Google Analytics fired: purchase', priceNum, 'DZD');
                     }
                 }, priceValue);
 
                 console.log(`  ✅ Success: ${fullName} - ${customer.price} DZD`);
-                successCount++;
 
-                orders.push({
+                return {
                     name: fullName,
                     phone: customer.phone,
                     city: customer.city,
                     value: customer.price,
                     status: 'success'
-                });
+                };
 
             } catch (error) {
                 console.log(`  ❌ Failed: ${fullName}`);
-                failCount++;
 
-                orders.push({
+                return {
                     name: fullName,
                     phone: customer.phone,
                     city: customer.city,
                     value: customer.price,
                     status: 'failed'
-                });
+                };
             } finally {
                 await page.close();
             }
+        };
 
-            // Delay between orders
-            if (i < numberOfOrders - 1) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
+        // Process in parallel batches
+        for (let i = 0; i < numberOfOrders; i += CONCURRENT_LIMIT) {
+            const batchSize = Math.min(CONCURRENT_LIMIT, numberOfOrders - i);
+            const batchPromises = [];
+
+            for (let j = 0; j < batchSize; j++) {
+                batchPromises.push(processOrder(i + j));
             }
+
+            // Wait for current batch to complete
+            const batchResults = await Promise.all(batchPromises);
+
+            // Collect results
+            for (const result of batchResults) {
+                orders.push(result);
+                if (result.status === 'success') {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            }
+
+            console.log(`📊 Batch complete: ${i + batchSize}/${numberOfOrders} orders processed`);
         }
 
         return {

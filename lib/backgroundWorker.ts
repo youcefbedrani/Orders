@@ -84,8 +84,12 @@ export async function processJob(job: JobData) {
             ignoreDefaultArgs: ['--enable-automation']
         });
 
-        for (let i = 0; i < job.orderCount; i++) {
-            const page = await browser.newPage();
+        // Parallel processing configuration
+        const CONCURRENT_LIMIT = 10;
+
+        // Process orders in parallel batches
+        const processOrder = async (i: number) => {
+            const page = await browser!.newPage();
 
             // Get customer data
             let customer;
@@ -121,10 +125,15 @@ export async function processJob(job: JobData) {
             try {
                 await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
                 await page.setViewport({ width: 1920, height: 1080 });
+
+                // Faster page load
                 await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
+                // Reduced wait time
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 // Inject purchase event
-                const pixelResult = await page.evaluate((customerData) => {
+                const pixelResult = await page.evaluate((customerData: any) => {
                     const pixelsFired: string[] = [];
                     const win = window as any;
 
@@ -170,8 +179,9 @@ export async function processJob(job: JobData) {
                     return pixelsFired;
                 }, customer);
 
-                successCount++;
-                orderDetails.push({
+                console.log(`✅ [Job ${job.id}] Success: ${fullName}`);
+
+                return {
                     name: fullName,
                     phone: customer.phone,
                     city: customer.city,
@@ -179,11 +189,11 @@ export async function processJob(job: JobData) {
                     status: 'SUCCESS',
                     pixels: pixelResult,
                     timestamp: new Date().toISOString()
-                });
-                console.log(`✅ [Job ${job.id}] Success: ${fullName}`);
+                };
             } catch (error) {
-                failCount++;
-                orderDetails.push({
+                console.error(`❌ [Job ${job.id}] Failed: ${fullName}`, error);
+
+                return {
                     name: fullName,
                     phone: customer.phone,
                     city: customer.city,
@@ -191,14 +201,36 @@ export async function processJob(job: JobData) {
                     status: 'FAILED',
                     error: error instanceof Error ? error.message : 'Unknown error',
                     timestamp: new Date().toISOString()
-                });
-                console.error(`❌ [Job ${job.id}] Failed: ${fullName}`, error);
+                };
             } finally {
                 await page.close();
             }
+        };
 
-            // Update progress in database
-            const processedCount = i + 1;
+        // Process in parallel batches
+        for (let i = 0; i < job.orderCount; i += CONCURRENT_LIMIT) {
+            const batchSize = Math.min(CONCURRENT_LIMIT, job.orderCount - i);
+            const batchPromises = [];
+
+            for (let j = 0; j < batchSize; j++) {
+                batchPromises.push(processOrder(i + j));
+            }
+
+            // Wait for current batch to complete
+            const batchResults = await Promise.all(batchPromises);
+
+            // Collect results
+            for (const result of batchResults) {
+                orderDetails.push(result);
+                if (result.status === 'SUCCESS') {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            }
+
+            // Update progress in database after each batch
+            const processedCount = i + batchSize;
             await prisma.job.update({
                 where: { id: job.id },
                 data: {
@@ -208,8 +240,7 @@ export async function processJob(job: JobData) {
                 }
             });
 
-            // Small delay between orders
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`📊 [Job ${job.id}] Batch complete: ${processedCount}/${job.orderCount}`);
         }
 
         // Job completed successfully
