@@ -87,8 +87,46 @@ export async function processJob(job: JobData) {
         // Parallel processing configuration
         const CONCURRENT_LIMIT = 10;
 
-        // Process orders in parallel batches
+        // Process orders in parallel batches with retry
         const processOrder = async (i: number) => {
+            const MAX_ORDER_RETRIES = 2;
+            let lastError: any;
+
+            // Retry logic for individual order
+            for (let attempt = 1; attempt <= MAX_ORDER_RETRIES; attempt++) {
+                try {
+                    const result = await processOrderAttempt(i, attempt, MAX_ORDER_RETRIES);
+                    if (result.status === 'SUCCESS' || attempt === MAX_ORDER_RETRIES) {
+                        return result;
+                    }
+                } catch (error) {
+                    lastError = error;
+                    if (attempt < MAX_ORDER_RETRIES) {
+                        console.log(`[Job ${job.id}] Retrying order ${i + 1} in 2s...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+            }
+
+            // Return failed result after all retries
+            const customer = job.mode === 'excel' && job.customerData && job.customerData[i]
+                ? job.customerData[i]
+                : generateRandomCustomer(defaultPrice);
+            const fullName = `${customer.firstName || 'Unknown'} ${customer.lastName || 'Customer'}`;
+
+            return {
+                name: fullName,
+                phone: customer.phone || 'N/A',
+                city: customer.city || 'N/A',
+                price: customer.price || defaultPrice.toFixed(2),
+                status: 'FAILED',
+                error: lastError instanceof Error ? lastError.message : 'All retry attempts failed',
+                timestamp: new Date().toISOString()
+            };
+        };
+
+        // Actual order processing logic
+        const processOrderAttempt = async (i: number, attempt: number, maxAttempts: number) => {
             const page = await browser!.newPage();
 
             // Get customer data
@@ -191,7 +229,9 @@ export async function processJob(job: JobData) {
                     timestamp: new Date().toISOString()
                 };
             } catch (error) {
-                console.error(`❌ [Job ${job.id}] Failed: ${fullName}`, error);
+                console.error(`❌ [Job ${job.id}] Failed: ${fullName} (Attempt ${attempt}/${maxAttempts})`);
+                console.error(`   Error:`, error instanceof Error ? error.message : error);
+                console.error(`   Stack:`, error instanceof Error ? error.stack : 'N/A');
 
                 return {
                     name: fullName,
@@ -200,6 +240,7 @@ export async function processJob(job: JobData) {
                     price: customer.price,
                     status: 'FAILED',
                     error: error instanceof Error ? error.message : 'Unknown error',
+                    attempt: attempt,
                     timestamp: new Date().toISOString()
                 };
             } finally {
@@ -240,7 +281,12 @@ export async function processJob(job: JobData) {
                 }
             });
 
-            console.log(`📊 [Job ${job.id}] Batch complete: ${processedCount}/${job.orderCount}`);
+            console.log(`📊 [Job ${job.id}] Batch complete: ${processedCount}/${job.orderCount} (Success: ${successCount}, Failed: ${failCount})`);
+
+            // Small delay between batches to avoid overwhelming the server
+            if (processedCount < job.orderCount) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
 
         // Job completed successfully
