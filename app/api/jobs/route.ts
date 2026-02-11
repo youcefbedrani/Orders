@@ -48,6 +48,20 @@ export async function POST(request: NextRequest) {
         });
 
         // Add to job queue
+        // Parse customerData if it's a string (from Excel mode)
+        let parsedCustomerData = customerData;
+        if (customerData && typeof customerData === 'string') {
+            try {
+                parsedCustomerData = JSON.parse(customerData);
+                console.log(`📊 Parsed customerData: ${Array.isArray(parsedCustomerData) ? parsedCustomerData.length : 0} customers`);
+            } catch (error) {
+                console.error('Failed to parse customerData:', error);
+                parsedCustomerData = undefined;
+            }
+        } else if (Array.isArray(parsedCustomerData)) {
+            console.log(`📊 CustomerData array: ${parsedCustomerData.length} customers`);
+        }
+
         await jobQueue.addJob({
             id: job.id,
             userId: job.userId,
@@ -57,8 +71,10 @@ export async function POST(request: NextRequest) {
             customPrice: job.customPrice || undefined,
             fileName: job.fileName || undefined,
             fileUrl: job.fileUrl || undefined,
-            customerData: customerData || undefined
+            customerData: parsedCustomerData || undefined
         });
+
+        console.log(`✅ Job ${job.id} created and queued (Mode: ${job.mode}, Orders: ${job.orderCount})`);
 
         return NextResponse.json({
             success: true,

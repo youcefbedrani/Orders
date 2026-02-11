@@ -52,6 +52,11 @@ function generateRandomCustomer(defaultPrice: number) {
 
 export async function processJob(job: JobData) {
     console.log(`🚀 Starting job ${job.id}`);
+    console.log(`   Mode: ${job.mode}, Orders: ${job.orderCount}`);
+    console.log(`   CustomerData type: ${typeof job.customerData}, isArray: ${Array.isArray(job.customerData)}`);
+    if (Array.isArray(job.customerData)) {
+        console.log(`   CustomerData length: ${job.customerData.length}`);
+    }
 
     // Update job status to RUNNING
     await prisma.job.update({
