@@ -90,7 +90,8 @@ export async function processJob(job: JobData) {
         });
 
         // Parallel processing configuration
-        const CONCURRENT_LIMIT = 10;
+        // Parallel processing configuration
+        const CONCURRENT_LIMIT = 3; // Reduced from 10 to prevent network errors
 
         // Process orders in parallel batches with retry
         const processOrder = async (i: number) => {
@@ -114,9 +115,37 @@ export async function processJob(job: JobData) {
             }
 
             // Return failed result after all retries
-            const customer = job.mode === 'excel' && job.customerData && job.customerData[i]
-                ? job.customerData[i]
-                : generateRandomCustomer(defaultPrice);
+            // Use the SAME customer data logic as processOrderAttempt would have used
+            let customer;
+            if (job.mode === 'excel' && job.customerData && job.customerData[i]) {
+                const row = job.customerData[i];
+                let firstName = row.firstName || randomItem(NAMES);
+                let lastName = row.lastName || randomItem(LASTNAMES);
+                if (row.name) {
+                    const nameParts = row.name.toString().trim().split(' ');
+                    if (nameParts.length > 0) {
+                        firstName = nameParts[0];
+                        if (nameParts.length > 1) {
+                            lastName = nameParts.slice(1).join(' ');
+                        }
+                    }
+                }
+                customer = {
+                    firstName,
+                    lastName,
+                    phone: row.phone || row.telephone || randomPhone(),
+                    city: row.city || row.ville || randomItem(CITIES),
+                    price: parsePrice(row.price || row.value || row.total, defaultPrice)
+                };
+            } else {
+                // For random mode, we can't easily recover the exact random data that failed inside processOrderAttempt 
+                // unless we generate it *outside* and pass it in. 
+                // However, since we're here, it means all attempts failed.
+                // To keep logs somewhat consistent, we'll just generate a placeholder or new random data 
+                // matching the final attempt.
+                customer = generateRandomCustomer(defaultPrice);
+            }
+
             const fullName = `${customer.firstName || 'Unknown'} ${customer.lastName || 'Customer'}`;
 
             return {
@@ -259,6 +288,8 @@ export async function processJob(job: JobData) {
             const batchPromises = [];
 
             for (let j = 0; j < batchSize; j++) {
+                // Add small delay between starting each browser in a batch
+                await new Promise(resolve => setTimeout(resolve, 500 * j));
                 batchPromises.push(processOrder(i + j));
             }
 

@@ -123,7 +123,7 @@ function generateRandomCustomer(defaultPrice: number) {
 }
 
 // Parallel processing configuration
-const CONCURRENT_LIMIT = 10; // Process 10 orders simultaneously
+const CONCURRENT_LIMIT = 3; // Process 3 orders simultaneously (reduced from 10)
 
 async function warmPixel(url: string, numberOfOrders: number, mode: string, excelData?: any[], customPrice?: number) {
     let browser;
